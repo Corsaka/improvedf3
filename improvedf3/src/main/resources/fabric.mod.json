@@ -1,13 +1,12 @@
 {
   "schemaVersion": 1,
-  "id": "improvedf3",
+  "id": "${modid}",
   "version": "${version}",
-  "name": "ImprovedF3",
-  "description": "A mod to improve your F3 menu.",
+  "name": "${mod_name}",
+  "description": "An improved F3 screen, with colours and precision.",
   "authors": [
-    "Corsaka"
   ],
-  "license": "MIT",
+  "license": "CC0-1.0",
   "environment": "*",
   "entrypoints": {
     "main": [
@@ -18,7 +17,7 @@
     "improvedf3.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.13.3",
-    "cosmic_reach": ">=0.0.10"
+    "fabricloader": ">=${loader_version}",
+    "cosmic_reach": ">=0.1.4"
   }
 }

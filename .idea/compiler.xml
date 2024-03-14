@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Gradle Imported" enabled="true">
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.llamalad7/mixinextras-fabric/0.3.5/3b577be20ea942610b3045e4f0cd909fa415a9d3/mixinextras-fabric-0.3.5.jar" />
+        </processorPath>
+        <module name="ImprovedF3.modLoader.main" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="com.example.examplemod.Cosmic-Example-Mod.examplemod.main~1" target="17" />
+      <module name="com.example.examplemod.Cosmic-Example-Mod.examplemod.test~1" target="17" />
+      <module name="corsaka.improvedf3.Improvedf3" target="17" />
+      <module name="Cosmic-Example-Mod.modLoader" target="17" />
+      <module name="Cosmic-Example-Mod.modLoader.main" target="17" />
+      <module name="modLoader.Cosmic-Example-Mod.modLoader.test" target="17" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

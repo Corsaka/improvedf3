@@ -1,13 +1,7 @@
 package ru.nern.modloader;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Collectors;
-
+import com.google.common.collect.ImmutableList;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.impl.FormattedException;
 import net.fabricmc.loader.impl.game.GameProvider;
 import net.fabricmc.loader.impl.game.GameProviderHelper;
@@ -19,47 +13,65 @@ import net.fabricmc.loader.impl.util.Arguments;
 import net.fabricmc.loader.impl.util.SystemProperties;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
+import org.objectweb.asm.AnnotationVisitor;
+import org.objectweb.asm.commons.AdviceAdapter;
+import org.objectweb.asm.tree.AbstractInsnNode;
+import org.objectweb.asm.tree.analysis.Analyzer;
+import org.objectweb.asm.util.ASMifier;
+import org.spongepowered.asm.launch.MixinBootstrap;
 import ru.nern.modloader.patch.CRInitPatch;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /*
  * A custom GameProvider which grants Fabric Loader the necessary information to launch the app.
  */
 public class CosmicReachGameProvider implements GameProvider {
-    public static final String CLIENT_ENTRYPOINT = "finalforeach.cosmicreach.lwjgl3.Lwjgl3Launcher";
-    public static final String[] ENTRYPOINTS = { CLIENT_ENTRYPOINT };
-
-    public static final String PROPERTY_APP_DIRECTORY = "appDirectory";
-
-    private static final GameTransformer TRANSFORMER = new GameTransformer(new CRInitPatch());
+    public static final String[] ENTRYPOINTS = new String[]{"finalforeach.cosmicreach.lwjgl3.Lwjgl3Launcher"};
+    public static final String PROPERTY_GAME_DIRECTORY = "appDirectory";
 
     private Arguments arguments;
-    private Path appJar;
+    private Path gameJar;
     private CRVersion version;
+    private String entrypoint;
+
+    private static final GameTransformer TRANSFORMERS = new GameTransformer(new CRInitPatch());
 
     /*
      * Display an identifier for the app.
-     */ @Override
+     */
+    @Override
     public String getGameId() {
         return "cosmic_reach";
     }
 
     /*
      * Display a readable name for the app.
-     */ @Override
+     */
+    @Override
     public String getGameName() {
         return "Cosmic Reach";
     }
 
     /*
      * Display a raw version string that may include build numbers or git hashes.
-     */ @Override
+     */
+    @Override
     public String getRawGameVersion() {
         return version.getVersion();
     }
 
     /*
      * Display a clean version string for display.
-     */ @Override
+     */
+    @Override
     public String getNormalizedGameVersion() {
         return version.getVersion();
     }
@@ -71,16 +83,17 @@ public class CosmicReachGameProvider implements GameProvider {
     @Override
     public Collection<BuiltinMod> getBuiltinMods() {
         HashMap<String, String> contactMap = new HashMap<>();
+        contactMap.put("homepage", "https://finalforeach.itch.io/cosmic-reach");
+        contactMap.put("wiki", "https://finalforeach.itch.io/cosmic-reach");
+
 
         BuiltinModMetadata.Builder modMetadata = new BuiltinModMetadata.Builder(getGameId(), getNormalizedGameVersion())
-            .setName(getGameName())
-            .addAuthor("FinalForEach", contactMap)
-            .setContact(new ContactInformationImpl(contactMap))
-            .setDescription("The base game");
+                .setName(getGameName())
+                .addAuthor("FinalForEach", contactMap)
+                .setContact(new ContactInformationImpl(contactMap))
+                .setDescription("The base game");
 
-        BuiltinMod mod = new BuiltinMod(Collections.singletonList(appJar), modMetadata.build());
-
-        return Collections.singletonList(mod);
+        return Collections.singletonList(new BuiltinMod(Collections.singletonList(gameJar), modMetadata.build()));
     }
 
     /*
@@ -88,7 +101,7 @@ public class CosmicReachGameProvider implements GameProvider {
      */
     @Override
     public String getEntrypoint() {
-        return CLIENT_ENTRYPOINT;
+        return entrypoint;
     }
 
     /*
@@ -101,12 +114,11 @@ public class CosmicReachGameProvider implements GameProvider {
         if (arguments == null) {
             return Paths.get(".");
         }
-
         return getLaunchDirectory(arguments);
     }
 
     private static Path getLaunchDirectory(Arguments arguments) {
-        return Paths.get(arguments.getOrDefault(PROPERTY_APP_DIRECTORY, "."));
+        return Paths.get(arguments.getOrDefault(PROPERTY_GAME_DIRECTORY, "."));
     }
 
     /*
@@ -142,6 +154,7 @@ public class CosmicReachGameProvider implements GameProvider {
         if (System.getProperty(SystemProperties.GAME_JAR_PATH) != null) {
             appLocations.add(System.getProperty(SystemProperties.GAME_JAR_PATH));
         }
+
         // List out default locations.
         appLocations.add("./cosmic-reach.jar");
         appLocations.add("./game/cosmic-reach.jar");
@@ -156,16 +169,16 @@ public class CosmicReachGameProvider implements GameProvider {
         if (result == null || result.path == null) {
             // Tell the user we couldn't find the app JAR.
             String appLocationsString = appLocations.stream().map(p -> (String.format("* %s", Paths.get(p).toAbsolutePath().normalize())))
-                .collect(Collectors.joining("\n"));
-            
+                    .collect(Collectors.joining("\n"));
+
             Log.error(LogCategory.GAME_PROVIDER, "Could not locate the application JAR! We looked in: \n" + appLocationsString);
 
             return false;
         }
 
-        this.version = new CRVersion(result.path);
-
-        this.appJar = result.path;
+        entrypoint = result.name;
+        version = new CRVersion(result.path);
+        gameJar = result.path;
 
         return true;
     }
@@ -176,7 +189,21 @@ public class CosmicReachGameProvider implements GameProvider {
      */
     @Override
     public void initialize(FabricLauncher launcher) {
-        TRANSFORMER.locateEntrypoints(launcher, appJar);
+        try {
+            launcher.setValidParentClassPath(ImmutableList.of(
+                    Path.of(getClass().getProtectionDomain().getCodeSource().getLocation().toURI()),
+                    Path.of(MixinBootstrap.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                    Path.of(FabricLoader.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                    Path.of(AnnotationVisitor.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                    Path.of(AbstractInsnNode.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                    Path.of(Analyzer.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                    Path.of(ASMifier.class.getProtectionDomain().getCodeSource().getLocation().toURI()),
+                    Path.of(AdviceAdapter.class.getProtectionDomain().getCodeSource().getLocation().toURI())
+            ));
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+        TRANSFORMERS.locateEntrypoints(launcher, Collections.singletonList(gameJar));
     }
 
     /*
@@ -184,7 +211,7 @@ public class CosmicReachGameProvider implements GameProvider {
      */
     @Override
     public GameTransformer getEntrypointTransformer() {
-        return TRANSFORMER;
+        return TRANSFORMERS;
     }
 
     /*
@@ -193,7 +220,7 @@ public class CosmicReachGameProvider implements GameProvider {
      */
     @Override
     public void unlockClassPath(FabricLauncher launcher) {
-        launcher.addToClassPath(appJar);
+        launcher.addToClassPath(gameJar);
     }
 
     /*
@@ -201,17 +228,15 @@ public class CosmicReachGameProvider implements GameProvider {
      */
     @Override
     public void launch(ClassLoader loader) {
+        String targetClass = entrypoint;
         try {
-            Class<?> main = loader.loadClass(this.getEntrypoint());
+            Class<?> main = loader.loadClass(targetClass);
             Method method = main.getMethod("main", String[].class);
-
             method.invoke(null, (Object) this.arguments.toArray());
         } catch (InvocationTargetException e) {
-            throw new FormattedException("App has crashed!", e.getCause());
+            throw new FormattedException("The game has crashed!", e.getCause());
         } catch (ReflectiveOperationException e) {
-            throw new FormattedException("Failed to launch App", e);
-        } catch (Exception e) {
-            e.printStackTrace();
+            throw new FormattedException("Failed to launch the game", e);
         }
     }
 
@@ -222,9 +247,6 @@ public class CosmicReachGameProvider implements GameProvider {
 
     @Override
     public String[] getLaunchArguments(boolean sanitize) {
-        if (arguments == null) return new String[0];
-
-        String[] ret = arguments.toArray();
-        return ret;
+        return arguments == null ? new String[0] : arguments.toArray();
     }
 }
