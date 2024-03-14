@@ -5,6 +5,7 @@
   "name": "${mod_name}",
   "description": "An improved F3 screen, with colours and precision.",
   "authors": [
+    "Corsaka"
   ],
   "license": "CC0-1.0",
   "environment": "*",
