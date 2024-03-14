@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "improvedf3",
+  "version": "${version}",
+  "name": "ImprovedF3",
+  "description": "A mod to improve your F3 menu.",
+  "authors": [
+    "Corsaka"
+  ],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "corsaka.improvedf3.ImprovedF3"
+    ]
+  },
+  "mixins": [
+    "improvedf3.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.13.3",
+    "cosmic_reach": ">=0.0.10"
+  }
+}

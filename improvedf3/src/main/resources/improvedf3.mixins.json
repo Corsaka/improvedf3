@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "corsaka.improvedf3.mixin",
+  "compatibilityLevel": "JAVA_16",
+  "mixins": [
+    "FontRendererMixin",
+    "UIMixin",
+    "ViewportAccessor"
+  ],
+  "client": [],
+  "server": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
