@@ -84,7 +84,7 @@ public class UIMixin {
     int lightG = (blockLight & 240) >> 4;
     int lightB = blockLight & 15;
     int skyLight = world.getSkyLight(chunk, bx, by, bz);
-    return "¦fLighting: (¦c" + lightR + "¦f, ¦a" + lightG + "¦f, ¦b" + lightB + "¦f), Sky: ¦e" + skyLight + "¦d";
+    return "¦fLighting: (¦c" + lightR + "¦f, ¦a" + lightG + "¦f, ¦b" + lightB + "¦f), Sky: ¦e" + skyLight + "¦e";
   }
 
   @Unique
@@ -111,6 +111,12 @@ public class UIMixin {
     debugText = splitAndRebuild(debugText,"Regions loaded:");
     debugText = splitAndRebuild(debugText,"Chunks loaded:");
     debugText = splitAndRebuild(debugText,"World Seed:");
+
+    Player player = InGame.getLocalPlayer();
+    Entity playerEntity = player.getEntity();
+    debugText = debugText + (playerEntity.isSneaking ? "\n¦d[Crouch]" : "\n");
+    debugText = debugText + (player.isSprinting ? "\n¦d[Sprint]" : "\n");
+    debugText = debugText + (playerEntity.noClip ? "\n¦d[Noclip]" : "\n");
     adjusted = true;
     return debugText;
   }
